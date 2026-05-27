@@ -1,6 +1,13 @@
-Describe how to use
+### Project Background
 
+TODO for JY: 
+Describe WHY this project was created
+Then describe what this project does
 Show sample output
+
+### How to use
+
+`python matplot_scientific_graph.py`
 
 ### Sample Input
 ```
