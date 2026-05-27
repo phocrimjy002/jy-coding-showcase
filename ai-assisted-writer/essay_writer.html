@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Studio Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --panel2: #1f2430;
+            --accent: #4ade80;
+            --text: #f3f4f6;
+            --muted: #9ca3af;
+            --border: #2d3340;
+            --hover: #252b38;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 260px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search { padding: 12px; }
+
+        .search input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            outline: none;
+            border-radius: 12px;
+            background: var(--panel2);
+            color: white;
+        }
+
+        .notes { flex: 1; overflow-y: auto; }
+
+        .note {
+            padding: 14px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: 0.2s;
+        }
+
+        .note:hover { background: var(--hover); }
+        .note.active { background: rgba(74,222,128,0.15); }
+
+        .note-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .note-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .delete-btn {
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 8px;
+            padding: 4px 8px;
+            transition: 0.2s;
+        }
+
+        .rename-btn {
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            font-size: 13px;
+            border-radius: 8px;
+            padding: 4px 8px;
+            transition: 0.2s;
+        }
+
+        .rename-btn:hover {
+            background: rgba(74,222,128,0.15);
+            color: var(--accent);
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* RENAME INLINE INPUT */
+        .note-title-input {
+            flex: 1;
+            background: var(--panel2);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            padding: 2px 8px;
+            outline: none;
+            font-family: inherit;
+            min-width: 0;
+        }
+
+        /* ── SPOTLIGHT TUTORIAL ── */
+
+        /* dark overlay with a cutout hole */
+        #tutOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            pointer-events: none; /* let clicks through by default */
+            display: none;
+        }
+
+        /* SVG sits full-screen; the rect with the hole is drawn by JS */
+        #tutOverlaySvg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* click-blocker: prevents clicking anything OUTSIDE the spotlight */
+        #tutClickBlock {
+            position: fixed;
+            inset: 0;
+            z-index: 1001;
+            display: none;
+        }
+
+        /* the tooltip card */
+        #tutCard {
+            position: fixed;
+            z-index: 1002;
+            width: 300px;
+            background: var(--panel);
+            border: 1px solid var(--accent);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            animation: tutPop 0.2s ease;
+        }
+
+        @keyframes tutPop {
+            from { opacity:0; transform: scale(0.93) translateY(6px); }
+            to   { opacity:1; transform: scale(1) translateY(0); }
+        }
+
+        /* small arrow pointing toward the target */
+        #tutCard::before {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--panel);
+            border-left: 1px solid var(--accent);
+            border-top: 1px solid var(--accent);
+            border-radius: 2px;
+        }
+
+        #tutCard.arrow-top::before    { top:-7px;    left:24px; transform: rotate(45deg); }
+        #tutCard.arrow-bottom::before { bottom:-7px; left:24px; transform: rotate(225deg); }
+        #tutCard.arrow-left::before   { left:-7px;   top:24px;  transform: rotate(-45deg); }
+        #tutCard.arrow-right::before  { right:-7px;  top:24px;  transform: rotate(135deg); }
+
+        .tut-card-step {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .tut-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            margin: -4px 0 0;
+        }
+
+        .tut-card-body {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        /* progress dots */
+        .tut-card-dots {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .tut-card-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            transition: 0.2s;
+        }
+
+        .tut-card-dot.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            width: 18px;
+            border-radius: 3px;
+        }
+
+        .tut-card-dot.done {
+            background: rgba(74,222,128,0.4);
+            border-color: rgba(74,222,128,0.4);
+        }
+
+        .tut-card-nav {
+            display: flex;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .tut-card-nav button {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .tut-btn-skip { background: var(--panel2); color: var(--muted); }
+        .tut-btn-next { background: var(--accent); color: black; }
+
+        /* highlighted element pulse ring */
+        .tut-highlight {
+            outline: 2px solid var(--accent) !important;
+            outline-offset: 3px !important;
+            box-shadow: 0 0 0 5px rgba(74,222,128,0.18) !important;
+            border-radius: 12px;
+            transition: outline 0.2s, box-shadow 0.2s;
+            position: relative;
+            z-index: 1003 !important;
+        }
+
+        /* ── FOLDERS ── */
+        .folder {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            user-select: none;
+            transition: 0.15s;
+        }
+
+        .folder-header:hover { background: var(--hover); color: var(--text); }
+
+        .folder-arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .folder.open .folder-arrow { transform: rotate(90deg); }
+
+        .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .folder-count {
+            font-size: 11px;
+            background: var(--panel2);
+            border-radius: 99px;
+            padding: 1px 7px;
+            color: var(--muted);
+        }
+
+        .folder-actions { display: flex; gap: 2px; }
+
+        .folder-rename-btn, .folder-delete-btn {
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 6px;
+            padding: 3px 6px;
+            transition: 0.15s;
+        }
+
+        .folder-rename-btn:hover { background: rgba(74,222,128,0.15); color: var(--accent); }
+        .folder-delete-btn:hover  { background: rgba(255,0,0,0.15); color: #f87171; }
+
+        .folder-docs {
+            display: none;
+            padding-left: 8px;
+        }
+
+        .folder.open .folder-docs { display: block; }
+
+        /* Unfiled section header */
+        .unfiled-header {
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #555;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        /* Tag pill on a note */
+        .note-tag {
+            font-size: 10px;
+            padding: 1px 7px;
+            border-radius: 99px;
+            margin-top: 4px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        /* Folder select in note context */
+        .note-folder-select {
+            font-size: 11px;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--muted);
+            padding: 2px 4px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* Add folder button */
+        .add-folder-btn {
+            margin: 6px 12px 0;
+            padding: 8px;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            cursor: pointer;
+            width: calc(100% - 24px);
+            transition: 0.2s;
+        }
+
+        .add-folder-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Folder name inline input */
+        .folder-name-input {
+            flex: 1;
+            background: var(--panel2);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            padding: 1px 6px;
+            outline: none;
+            font-family: inherit;
+            min-width: 0;
+        }
+
+        /* ── PAGE STYLE MODAL ── */
+        .style-box {
+            width: 420px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .style-box h2 { margin: 0; font-size: 20px; }
+
+        .style-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .style-row label {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .style-row select,
+        .style-row input[type=range] {
+            width: 100%;
+            background: var(--panel2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            padding: 10px 12px;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .style-row input[type=range] {
+            padding: 6px 0;
+            accent-color: var(--accent);
+        }
+
+        .style-val {
+            font-size: 12px;
+            color: var(--accent);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .style-presets {
+            display: flex;
+            gap: 8px;
+        }
+
+        .style-preset {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--panel2);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .style-preset:hover,
+        .style-preset.active {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .style-buttons { display: flex; gap: 10px; }
+
+        .style-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* ── WORD COUNT TARGET BAR ── */
+        .wc-bar-wrap {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 18px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            background: var(--panel);
+        }
+
+        .wc-bar-wrap.visible { display: flex; }
+
+        .wc-bar-track {
+            flex: 1;
+            height: 6px;
+            background: var(--panel2);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .wc-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: var(--accent);
+            transition: width 0.3s, background 0.3s;
+            width: 0%;
+        }
+
+        .wc-bar-fill.over  { background: #f59e0b; }
+        .wc-bar-fill.done  { background: var(--accent); }
+
+        .wc-bar-label {
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .wc-bar-label b { color: var(--text); }
+
+        .wc-set-btn {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 8px;
+            transition: 0.15s;
+        }
+
+        .wc-set-btn:hover { background: var(--hover); color: var(--text); }
+
+        /* ── WORD COUNT TARGET MODAL ── */
+        .wc-modal-box {
+            width: 340px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .wc-modal-box h2 { margin: 0; font-size: 18px; }
+
+        .wc-modal-box label { font-size: 13px; color: var(--muted); }
+
+        .wc-modal-box input {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            outline: none;
+            border-radius: 10px;
+            background: var(--panel2);
+            color: white;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .wc-modal-btns { display: flex; gap: 8px; }
+
+        .wc-modal-btns button {
+            flex: 1;
+            padding: 11px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .new-btn {
+            margin: 12px;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            background: var(--accent);
+            color: black;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* prevent flex blowout */
+        overflow: hidden;
+        }
+
+        /* TOOLBAR */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .tool-btn {
+            border: none;
+            background: var(--panel2);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tool-btn:hover { background: var(--hover); }
+
+        /* EDITOR WRAPPER — this is the scrollable viewport */
+        .editor-wrap {
+            flex: 1;
+            overflow-y: auto;   /* scroll here, not on the editor */
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center;
+            padding: 40px 40px 80px;
+        }
+
+        /*
+         * THE FIX:
+         * - Remove any fixed height / min-height
+         * - height: auto lets the div grow with content
+         * - align-self: flex-start prevents the paper from
+         *   stretching to fill the flex container height,
+         *   which was forcing it to stay at a fixed size
+         */
+        #editor {
+            width: min(900px, 100%);
+            height: auto;           /* grow with content        */
+            min-height: 1100px;     /* start at a nice page size */
+            align-self: flex-start; /* KEY FIX: don't stretch   */
+
+            background: white;
+            color: black;
+            padding: 80px;
+            border-radius: 24px;
+            outline: none;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+        }
+
+        /* STATUS */
+        .status {
+            padding: 10px 18px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        /* AI PANEL */
+        .ai-panel {
+            width: 340px;
+            flex-shrink: 0;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-header {
+            padding: 18px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #chat { flex: 1; overflow: auto; padding: 16px; }
+
+        .message {
+            background: var(--panel2);
+            padding: 14px;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            animation: fade 0.2s ease;
+            white-space: pre-wrap;
+        }
+
+        @keyframes fade {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-controls {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        textarea {
+            width: 100%;
+            resize: none;
+            border: none;
+            outline: none;
+            background: var(--panel2);
+            color: white;
+            border-radius: 12px;
+            padding: 12px;
+            height: 80px;
+        }
+
+        .send-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: var(--accent);
+            color: black;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* MODAL BASE */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(8px);
+        }
+
+        /* ESSAY MODAL */
+        .essay-box {
+            width: 500px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .essay-box h2 { margin: 0; font-size: 20px; }
+
+        .essay-box label {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .essay-box input,
+        .essay-box textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            outline: none;
+            border-radius: 12px;
+            background: var(--panel2);
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .essay-box textarea {
+            height: 80px;
+            resize: none;
+        }
+
+        .word-range {
+            display: flex;
+            gap: 12px;
+        }
+
+        .word-range > div {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .word-range input { width: 100%; }
+
+        .essay-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .essay-buttons button {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: black;
+        }
+
+        .btn-cancel {
+            background: var(--panel2);
+            color: var(--text);
+        }
+
+        /* DIFF MODAL */
+        .diff-box {
+            width: min(900px, 95vw);
+            max-height: 85vh;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .diff-box h2 { margin: 0; font-size: 20px; }
+
+        .diff-subtitle {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: -8px;
+        }
+
+        .diff-columns {
+            display: flex;
+            gap: 16px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .diff-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .diff-col-header {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 0;
+        }
+
+        .diff-col-header.original { background: rgba(239,68,68,0.15); color: #f87171; }
+        .diff-col-header.improved { background: rgba(74,222,128,0.15); color: #4ade80; }
+
+        .diff-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            border-radius: 0 0 12px 12px;
+            font-size: 14px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .diff-content.original { background: rgba(239,68,68,0.06); }
+        .diff-content.improved { background: rgba(74,222,128,0.06); }
+
+        /* Diff highlights */
+        .diff-removed {
+            background: rgba(239,68,68,0.35);
+            border-radius: 3px;
+            text-decoration: line-through;
+            color: #fca5a5;
+        }
+
+        .diff-added {
+            background: rgba(74,222,128,0.35);
+            border-radius: 3px;
+            color: #86efac;
+        }
+
+        .diff-actions {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .diff-actions button {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* SETTINGS */
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(8px);
+        }
+
+        .settings-box {
+            width: 420px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .settings-box h2 { margin: 0; }
+
+        .settings-box label { color: var(--muted); font-size: 14px; }
+
+        .settings-box input,
+        .settings-box select {
+            padding: 12px;
+            border: none;
+            outline: none;
+            border-radius: 12px;
+            background: var(--panel2);
+            color: white;
+        }
+
+        .settings-buttons { display: flex; gap: 10px; }
+
+        .settings-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: var(--accent);
+            color: black;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="tgt-sidebar">
+    <div class="logo" id="tgt-logo">AI Studio</div>
+    <div class="search" id="tgt-search">
+        <input type="text" id="searchInput" placeholder="Search documents...">
+    </div>
+    <div class="notes" id="notes"></div>
+    <button class="add-folder-btn" id="tgt-addfolder" onclick="createFolder()">＋ New Folder</button>
+    <button class="new-btn" id="tgt-newbtn" onclick="createNote()">+ New Document</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+    <div class="toolbar" id="tgt-toolbar">
+        <button class="tool-btn" onclick="format('bold')"><b>B</b></button>
+        <button class="tool-btn" onclick="format('italic')"><i>I</i></button>
+        <button class="tool-btn" onclick="format('underline')"><u>U</u></button>
+        <button class="tool-btn" id="tgt-improve" onclick="improveText()">✨ Improve</button>
+        <button class="tool-btn" id="tgt-essay" onclick="openEssayModal()">📝 Generate Essay</button>
+        <button class="tool-btn" onclick="downloadPDF()">Export PDF</button>
+        <button class="tool-btn" id="tgt-style" onclick="openStyleModal()">🎨 Page Style</button>
+        <button class="tool-btn" id="tgt-wctarget" onclick="openWcModal()">🎯 Word Goal</button>
+        <button class="tool-btn" id="tgt-settings" onclick="openSettings()">⚙ Settings</button>
+        <button class="tool-btn" onclick="clearChatMemory()">🧠 Clear AI Memory</button>
+        <button class="tool-btn" onclick="restartTutorial()" title="Restart tutorial">❓ Help</button>
+    </div>
+
+    <div class="editor-wrap">
+        <div id="editor" contenteditable="true"></div>
+    </div>
+
+    <div class="status">
+        <span id="saveStatus">Saved</span>
+        <span id="stats">0 words</span>
+    </div>
+    <div class="wc-bar-wrap" id="wcBarWrap">
+        <div class="wc-bar-track"><div class="wc-bar-fill" id="wcBarFill"></div></div>
+        <div class="wc-bar-label" id="wcBarLabel"></div>
+        <button class="wc-set-btn" onclick="openWcModal()">✎</button>
+        <button class="wc-set-btn" onclick="clearWcGoal()" title="Clear goal">✕</button>
+    </div>
+</div>
+
+<!-- AI PANEL -->
+<div class="ai-panel" id="tgt-aipanel">
+    <div class="ai-header">AI Assistant</div>
+    <div id="chat"></div>
+    <div class="ai-controls" id="tgt-aicontrols">
+        <textarea id="promptBox" placeholder="Ask AI anything..."></textarea>
+        <button class="send-btn" onclick="askAI()">Send</button>
+    </div>
+</div>
+
+<!-- ESSAY GENERATOR MODAL -->
+<div id="essayModal" class="modal">
+    <div class="essay-box">
+        <h2>📝 Generate Essay</h2>
+
+        <div>
+            <label>Topic</label>
+            <input type="text" id="essayTopic" placeholder="e.g. The impact of social media on mental health">
+        </div>
+
+        <div>
+            <label>Brief description / key points to cover</label>
+            <textarea id="essayDesc" placeholder="e.g. Focus on teenagers, include statistics, argue for digital detox..."></textarea>
+        </div>
+
+        <div>
+            <label>Word count range</label>
+            <div class="word-range">
+                <div>
+                    <label>Minimum words</label>
+                    <input type="number" id="essayMin" placeholder="e.g. 400" min="50" max="10000">
+                </div>
+                <div>
+                    <label>Maximum words</label>
+                    <input type="number" id="essayMax" placeholder="e.g. 600" min="50" max="10000">
+                </div>
+            </div>
+        </div>
+
+        <div class="essay-buttons">
+            <button class="btn-primary" onclick="generateEssay()">✨ Generate</button>
+            <button class="btn-cancel" onclick="closeEssayModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- DIFF / COMPARISON MODAL -->
+<div id="diffModal" class="modal">
+    <div class="diff-box">
+        <h2>✨ Improvement Comparison</h2>
+        <div class="diff-subtitle">Highlighted changes: <span style="color:#f87171">removed</span> · <span style="color:#4ade80">added</span></div>
+        <div class="diff-columns">
+            <div class="diff-col">
+                <div class="diff-col-header original">Original</div>
+                <div class="diff-content original" id="diffOriginal"></div>
+            </div>
+            <div class="diff-col">
+                <div class="diff-col-header improved">Improved</div>
+                <div class="diff-content improved" id="diffImproved"></div>
+            </div>
+        </div>
+        <div class="diff-actions">
+            <button class="btn-primary" onclick="acceptImproved()">✓ Accept improved version</button>
+            <button class="btn-cancel" onclick="closeDiffModal()">✕ Keep original</button>
+        </div>
+    </div>
+</div>
+
+<!-- SPOTLIGHT TUTORIAL OVERLAY -->
+<div id="tutOverlay">
+    <svg id="tutOverlaySvg" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+<div id="tutClickBlock"></div>
+
+<!-- TUTORIAL TOOLTIP CARD -->
+<div id="tutCard">
+    <div class="tut-card-step" id="tutCardStep">Step 1 of 8</div>
+    <div class="tut-card-title" id="tutCardTitle"></div>
+    <div class="tut-card-body" id="tutCardBody"></div>
+    <div class="tut-card-dots" id="tutCardDots"></div>
+    <div class="tut-card-nav">
+        <button class="tut-btn-skip" onclick="closeTutorial()">Skip</button>
+        <button class="tut-btn-next" id="tutNextBtn" onclick="tutNext()">Next →</button>
+    </div>
+</div>
+
+<!-- PAGE STYLE MODAL -->
+<div id="styleModal" class="modal">
+    <div class="style-box">
+        <h2>🎨 Page Style</h2>
+
+        <div class="style-row">
+            <label>Presets</label>
+            <div class="style-presets">
+                <button class="style-preset" onclick="applyPreset('classic')">Classic</button>
+                <button class="style-preset" onclick="applyPreset('modern')">Modern</button>
+                <button class="style-preset" onclick="applyPreset('dark')">Dark Paper</button>
+                <button class="style-preset" onclick="applyPreset('warm')">Warm</button>
+            </div>
+        </div>
+
+        <div class="style-row">
+            <label>Font Family</label>
+            <select id="styleFont">
+                <option value="'Georgia', serif">Georgia (Serif)</option>
+                <option value="'Inter', sans-serif">Inter (Sans-serif)</option>
+                <option value="'Courier New', monospace">Courier New (Mono)</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Arial', sans-serif">Arial</option>
+                <option value="'Palatino', serif">Palatino</option>
+            </select>
+        </div>
+
+        <div class="style-row">
+            <div style="display:flex;justify-content:space-between">
+                <label>Font Size</label>
+                <span class="style-val" id="styleFontSizeVal">16px</span>
+            </div>
+            <input type="range" id="styleFontSize" min="12" max="24" step="1" value="16"
+                   oninput="document.getElementById('styleFontSizeVal').textContent=this.value+'px'">
+        </div>
+
+        <div class="style-row">
+            <div style="display:flex;justify-content:space-between">
+                <label>Line Spacing</label>
+                <span class="style-val" id="styleLineHVal">1.8</span>
+            </div>
+            <input type="range" id="styleLineH" min="1.2" max="2.8" step="0.1" value="1.8"
+                   oninput="document.getElementById('styleLineHVal').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+
+        <div class="style-row">
+            <label>Paper Colour</label>
+            <div style="display:flex;gap:10px;align-items:center">
+                <input type="color" id="stylePaperColor" value="#ffffff"
+                       style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0">
+                <span style="font-size:13px;color:var(--muted)">Click to pick any colour</span>
+            </div>
+        </div>
+
+        <div class="style-row">
+            <label>Text Colour</label>
+            <div style="display:flex;gap:10px;align-items:center">
+                <input type="color" id="styleTextColor" value="#000000"
+                       style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0">
+                <span style="font-size:13px;color:var(--muted)">Click to pick any colour</span>
+            </div>
+        </div>
+
+        <div class="style-buttons">
+            <button class="btn-primary" onclick="applyStyle()">Apply</button>
+            <button class="btn-cancel" onclick="resetStyle()">Reset to Default</button>
+            <button class="btn-cancel" onclick="closeStyleModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- WORD COUNT GOAL MODAL -->
+<div id="wcModal" class="modal">
+    <div class="wc-modal-box">
+        <h2>🎯 Set Word Goal</h2>
+        <label>Target word count for this session</label>
+        <input type="number" id="wcGoalInput" placeholder="e.g. 500" min="1" max="100000">
+        <div class="wc-modal-btns">
+            <button class="btn-primary" onclick="saveWcGoal()">Set Goal</button>
+            <button class="btn-cancel" onclick="closeWcModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsModal" class="settings-modal">
+    <div class="settings-box">
+        <h2>API Settings</h2>
+        <label>AI Provider</label>
+        <select id="providerSelect">
+            <option value="groq">Groq</option>
+            <option value="openai">OpenAI</option>
+        </select>
+        <label>Groq API Key</label>
+        <input type="password" id="groqKey" placeholder="Enter Groq API key">
+        <label>OpenAI API Key</label>
+        <input type="password" id="openaiKey" placeholder="Enter OpenAI API key">
+        <div class="settings-buttons">
+            <button onclick="saveAPIKeys()">Save</button>
+            <button onclick="closeSettings()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+
+    /* ========================
+       DATA
+    ======================== */
+    let notes   = JSON.parse(localStorage.getItem("ai-docs"))    || [];
+    let folders = JSON.parse(localStorage.getItem("ai-folders")) || [];
+    let currentId = null;
+    const editor = document.getElementById("editor");
+
+    // Migrate: ensure every note has a folderId field
+    notes.forEach(n => { if (!('folderId' in n)) n.folderId = null; });
+
+    /* ========================
+       FOLDERS
+    ======================== */
+    function saveFolders() {
+        localStorage.setItem("ai-folders", JSON.stringify(folders));
+    }
+
+    function createFolder() {
+        const folder = { id: Date.now(), title: "New Folder", open: true };
+        folders.push(folder);
+        saveFolders();
+        renderNotes();
+        // Immediately trigger rename on the new folder
+        setTimeout(() => startFolderRename(folder.id), 50);
+    }
+
+    function deleteFolder(id) {
+        if (!confirm("Delete folder? Documents inside will become unfiled.")) return;
+        folders = folders.filter(f => f.id !== id);
+        notes.forEach(n => { if (n.folderId === id) n.folderId = null; });
+        saveFolders();
+        saveNotes();
+        renderNotes();
+    }
+
+    function toggleFolder(id) {
+        const f = folders.find(f => f.id === id);
+        if (f) { f.open = !f.open; saveFolders(); renderNotes(); }
+    }
+
+    function startFolderRename(id) {
+        const el = document.getElementById('fname-' + id);
+        if (!el) return;
+        const folder = folders.find(f => f.id === id);
+        if (!folder) return;
+        const input = document.createElement('input');
+        input.className = 'folder-name-input';
+        input.value = folder.title;
+        el.replaceWith(input);
+        input.focus(); input.select();
+        function commit() {
+            folder.title = input.value.trim() || 'Folder';
+            saveFolders(); renderNotes();
+        }
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') renderNotes();
+        });
+        input.addEventListener('blur', commit);
+    }
+
+    /* ========================
+       NOTES
+    ======================== */
+    function createNote() {
+        const note = { id: Date.now(), title: "Untitled Document", content: "", folderId: null };
+        notes.unshift(note);
+        currentId = note.id;
+        saveNotes();
+        renderNotes();
+        loadNote(note.id);
+    }
+
+    function deleteNote(event, id) {
+        event.stopPropagation();
+        if (notes.length <= 1) { alert("You must keep at least one document."); return; }
+        if (!confirm("Delete this document?")) return;
+        notes = notes.filter(note => note.id !== id);
+        if (currentId === id) { currentId = notes[0].id; loadNote(currentId); }
+        saveNotes(); renderNotes();
+    }
+
+    function buildNoteEl(note) {
+        const div = document.createElement("div");
+        div.className = "note" + (note.id === currentId ? " active" : "");
+
+        // Folder select dropdown
+        const folderOpts = `<option value="">— unfiled —</option>` +
+            folders.map(f => `<option value="${f.id}" ${note.folderId == f.id ? 'selected' : ''}>${escHtmlSimple(f.title)}</option>`).join('');
+
+        div.innerHTML = `
+            <div class="note-row">
+                <div class="note-title" id="title-${note.id}">${escHtmlSimple(note.title)}</div>
+                <div class="note-actions">
+                    <button class="rename-btn" title="Rename" onclick="startRename(event,${note.id})">✎</button>
+                    <button class="delete-btn" title="Delete" onclick="deleteNote(event,${note.id})">✕</button>
+                </div>
+            </div>
+            <select class="note-folder-select" title="Move to folder"
+                onchange="moveNote(${note.id}, this.value)" onclick="event.stopPropagation()">
+                ${folderOpts}
+            </select>`;
+        div.onclick = () => loadNote(note.id);
+        return div;
+    }
+
+    function moveNote(noteId, folderId) {
+        const note = notes.find(n => n.id === noteId);
+        if (note) {
+            note.folderId = folderId ? parseInt(folderId) : null;
+            saveNotes(); renderNotes();
+        }
+    }
+
+    function renderNotes() {
+        const container = document.getElementById("notes");
+        container.innerHTML = "";
+
+        const query = document.getElementById("searchInput").value.toLowerCase();
+
+        // Build folder sections
+        folders.forEach(folder => {
+            const folderNotes = notes.filter(n => n.folderId == folder.id &&
+                (!query || n.title.toLowerCase().includes(query)));
+
+            const section = document.createElement('div');
+            section.className = 'folder' + (folder.open ? ' open' : '');
+            section.id = 'folder-' + folder.id;
+
+            section.innerHTML = `
+                <div class="folder-header" onclick="toggleFolder(${folder.id})">
+                    <span class="folder-arrow">▶</span>
+                    <span class="folder-name" id="fname-${folder.id}">${escHtmlSimple(folder.title)}</span>
+                    <span class="folder-count">${folderNotes.length}</span>
+                    <div class="folder-actions" onclick="event.stopPropagation()">
+                        <button class="folder-rename-btn" title="Rename folder" onclick="startFolderRename(${folder.id})">✎</button>
+                        <button class="folder-delete-btn" title="Delete folder" onclick="deleteFolder(${folder.id})">✕</button>
+                    </div>
+                </div>
+                <div class="folder-docs" id="fdocs-${folder.id}"></div>`;
+
+            container.appendChild(section);
+
+            const docsEl = document.getElementById('fdocs-' + folder.id);
+            folderNotes.forEach(note => docsEl.appendChild(buildNoteEl(note)));
+        });
+
+        // Unfiled notes
+        const unfiled = notes.filter(n => !n.folderId &&
+            (!query || n.title.toLowerCase().includes(query)));
+
+        if (unfiled.length > 0 || folders.length === 0) {
+            if (folders.length > 0) {
+                const hdr = document.createElement('div');
+                hdr.className = 'unfiled-header';
+                hdr.textContent = 'Unfiled';
+                container.appendChild(hdr);
+            }
+            unfiled.forEach(note => container.appendChild(buildNoteEl(note)));
+        }
+    }
+
+    function escHtmlSimple(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function startRename(event, id) {
+        event.stopPropagation();
+        const note = notes.find(n => n.id === id);
+        if (!note) return;
+        const titleEl = document.getElementById("title-" + id);
+        if (!titleEl) return;
+        const input = document.createElement("input");
+        input.className = "note-title-input";
+        input.value = note.title;
+        titleEl.replaceWith(input);
+        input.focus(); input.select();
+        function commit() {
+            note.title = input.value.trim() || "Untitled";
+            saveNotes(); renderNotes();
+        }
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter")  { e.preventDefault(); commit(); }
+            if (e.key === "Escape") renderNotes();
+        });
+        input.addEventListener("blur", commit);
+    }
+
+    function loadNote(id) {
+        const note = notes.find(n => n.id === id);
+        if (!note) return;
+        currentId = id;
+        editor.innerHTML = note.content;
+        renderNotes();
+        updateStats();
+    }
+
+    function saveNotes() {
+        localStorage.setItem("ai-docs", JSON.stringify(notes));
+        document.getElementById("saveStatus").innerText = "Saved";
+    }
+
+    /* AUTOSAVE */
+    let saveTimer;
+    editor.addEventListener("input", () => {
+        clearTimeout(saveTimer);
+        document.getElementById("saveStatus").innerText = "Saving...";
+        saveTimer = setTimeout(() => {
+            const note = notes.find(n => n.id === currentId);
+            if (note) {
+                note.content = editor.innerHTML;
+                // Title is now set manually via rename — don't overwrite it
+                saveNotes();
+                // Don't re-render notes on every keystroke (avoids disrupting rename)
+            }
+        }, 400);
+        updateStats();
+    });
+
+    /* TAB SUPPORT */
+    editor.addEventListener("keydown", function(e) {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const sel = window.getSelection();
+            const range = sel.getRangeAt(0);
+            const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
+            range.insertNode(tabNode);
+            range.setStartAfter(tabNode);
+            range.setEndAfter(tabNode);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    });
+
+    /* STATS + WORD GOAL BAR */
+    let wcGoal = parseInt(localStorage.getItem('ai-wc-goal')) || 0;
+
+    function updateStats() {
+        const text = editor.innerText.trim();
+        const words = text.length > 0 ? text.split(/\s+/).length : 0;
+        document.getElementById("stats").innerText = `${words} words`;
+        updateWcBar(words);
+    }
+
+    function updateWcBar(words) {
+        const wrap  = document.getElementById('wcBarWrap');
+        const fill  = document.getElementById('wcBarFill');
+        const label = document.getElementById('wcBarLabel');
+        if (!wcGoal) { wrap.classList.remove('visible'); return; }
+        wrap.classList.add('visible');
+        const pct = Math.min((words / wcGoal) * 100, 100);
+        fill.style.width = pct + '%';
+        fill.className = 'wc-bar-fill' + (words >= wcGoal ? ' done' : words > wcGoal * 1.1 ? ' over' : '');
+        label.innerHTML = `<b>${words}</b> / ${wcGoal} words` + (words >= wcGoal ? ' ✓' : '');
+    }
+
+    /* WORD COUNT GOAL MODAL */
+    function openWcModal() {
+        document.getElementById('wcGoalInput').value = wcGoal || '';
+        document.getElementById('wcModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('wcGoalInput').focus(), 50);
+    }
+
+    function closeWcModal() {
+        document.getElementById('wcModal').style.display = 'none';
+    }
+
+    function saveWcGoal() {
+        const v = parseInt(document.getElementById('wcGoalInput').value);
+        wcGoal = v > 0 ? v : 0;
+        localStorage.setItem('ai-wc-goal', wcGoal);
+        closeWcModal();
+        updateStats();
+    }
+
+    function clearWcGoal() {
+        wcGoal = 0;
+        localStorage.removeItem('ai-wc-goal');
+        updateStats();
+    }
+
+    /* ========================
+       PAGE STYLE
+    ======================== */
+    const DEFAULT_STYLE = {
+        font: "'Georgia', serif",
+        fontSize: 16,
+        lineH: 1.8,
+        paperColor: '#ffffff',
+        textColor: '#000000'
+    };
+
+    const PRESETS = {
+        classic: { font: "'Georgia', serif",        fontSize: 16, lineH: 1.8, paperColor: '#ffffff', textColor: '#1a1a1a' },
+        modern:  { font: "'Inter', sans-serif",      fontSize: 15, lineH: 1.7, paperColor: '#f9fafb', textColor: '#111827' },
+        dark:    { font: "'Inter', sans-serif",      fontSize: 15, lineH: 1.8, paperColor: '#1e2030', textColor: '#cdd6f4' },
+        warm:    { font: "'Palatino', serif",        fontSize: 16, lineH: 1.9, paperColor: '#fdf6e3', textColor: '#3b2f00' },
+    };
+
+    function loadPageStyle() {
+        const s = JSON.parse(localStorage.getItem('ai-page-style') || 'null') || DEFAULT_STYLE;
+        applyStyleToEditor(s);
+        return s;
+    }
+
+    function applyStyleToEditor(s) {
+        editor.style.fontFamily    = s.font;
+        editor.style.fontSize      = s.fontSize + 'px';
+        editor.style.lineHeight    = s.lineH;
+        editor.style.background    = s.paperColor;
+        editor.style.color         = s.textColor;
+    }
+
+    function openStyleModal() {
+        const s = JSON.parse(localStorage.getItem('ai-page-style') || 'null') || DEFAULT_STYLE;
+        document.getElementById('styleFont').value       = s.font;
+        document.getElementById('styleFontSize').value   = s.fontSize;
+        document.getElementById('styleFontSizeVal').textContent = s.fontSize + 'px';
+        document.getElementById('styleLineH').value      = s.lineH;
+        document.getElementById('styleLineHVal').textContent = parseFloat(s.lineH).toFixed(1);
+        document.getElementById('stylePaperColor').value = s.paperColor;
+        document.getElementById('styleTextColor').value  = s.textColor;
+        document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function closeStyleModal() {
+        document.getElementById('styleModal').style.display = 'none';
+    }
+
+    function applyPreset(name) {
+        const p = PRESETS[name];
+        if (!p) return;
+        document.getElementById('styleFont').value       = p.font;
+        document.getElementById('styleFontSize').value   = p.fontSize;
+        document.getElementById('styleFontSizeVal').textContent = p.fontSize + 'px';
+        document.getElementById('styleLineH').value      = p.lineH;
+        document.getElementById('styleLineHVal').textContent = parseFloat(p.lineH).toFixed(1);
+        document.getElementById('stylePaperColor').value = p.paperColor;
+        document.getElementById('styleTextColor').value  = p.textColor;
+        // highlight active preset button
+        document.querySelectorAll('.style-preset').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    function applyStyle() {
+        const s = {
+            font:       document.getElementById('styleFont').value,
+            fontSize:   parseInt(document.getElementById('styleFontSize').value),
+            lineH:      parseFloat(document.getElementById('styleLineH').value),
+            paperColor: document.getElementById('stylePaperColor').value,
+            textColor:  document.getElementById('styleTextColor').value,
+        };
+        applyStyleToEditor(s);
+        localStorage.setItem('ai-page-style', JSON.stringify(s));
+        closeStyleModal();
+    }
+
+    function resetStyle() {
+        localStorage.removeItem('ai-page-style');
+        applyStyleToEditor(DEFAULT_STYLE);
+        closeStyleModal();
+    }
+
+    /* FORMAT */
+    function format(cmd) {
+        document.execCommand(cmd, false, null);
+        editor.focus();
+    }
+
+    /* CHAT */
+    function addMessage(msg) {
+        const chat = document.getElementById("chat");
+        const div = document.createElement("div");
+        div.className = "message";
+        div.innerText = msg;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    /* SETTINGS */
+    function openSettings() {
+        document.getElementById("settingsModal").style.display = "flex";
+        loadAPIKeys();
+    }
+
+    function closeSettings() {
+        document.getElementById("settingsModal").style.display = "none";
+    }
+
+    function saveAPIKeys() {
+        localStorage.setItem("groq_api_key", document.getElementById("groqKey").value.trim());
+        localStorage.setItem("openai_api_key", document.getElementById("openaiKey").value.trim());
+        localStorage.setItem("ai_provider", document.getElementById("providerSelect").value);
+        addMessage("API settings saved.");
+        closeSettings();
+    }
+
+    function loadAPIKeys() {
+        document.getElementById("groqKey").value = localStorage.getItem("groq_api_key") || "";
+        document.getElementById("openaiKey").value = localStorage.getItem("openai_api_key") || "";
+        document.getElementById("providerSelect").value = localStorage.getItem("ai_provider") || "groq";
+    }
+
+    function getProvider() {
+        return localStorage.getItem("ai_provider") || "groq";
+    }
+
+    /* AI MEMORY */
+    function loadChatMemory() {
+        return JSON.parse(localStorage.getItem("ai_chat_memory")) || [
+            { role: "system", content: "You are a professional AI writing assistant integrated into a document editor." }
+        ];
+    }
+
+    function saveChatMemory(memory) {
+        localStorage.setItem("ai_chat_memory", JSON.stringify(memory));
+    }
+
+    function clearChatMemory() {
+        localStorage.removeItem("ai_chat_memory");
+        addMessage("AI memory cleared.");
+    }
+
+    /* AI REQUEST */
+    async function sendAI(messages) {
+        const provider = getProvider();
+        let url, key, model;
+
+        if (provider === "groq") {
+            url = "https://api.groq.com/openai/v1/chat/completions";
+            key = localStorage.getItem("groq_api_key");
+            model = "llama-3.3-70b-versatile";
+        } else {
+            url = "https://api.openai.com/v1/chat/completions";
+            key = localStorage.getItem("openai_api_key");
+            model = "gpt-4.1-mini";
+        }
+
+        if (!key) throw new Error("Missing API key.");
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model, messages, temperature: 0.7 })
+        });
+
+        if (!response.ok) throw new Error(await response.text());
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    /* ========================
+       IMPROVE WITH DIFF VIEW
+    ======================== */
+    let pendingImproved = "";
+
+    async function improveText() {
+        const text = editor.innerText.trim();
+        if (!text) { addMessage("Document is empty."); return; }
+        addMessage("✨ Improving document...");
+        try {
+            const improved = await sendAI([
+                { role: "system", content: "Improve the user's writing professionally while preserving meaning. Return only the improved text, no commentary." },
+                { role: "user", content: text }
+            ]);
+            pendingImproved = improved;
+            showDiff(text, improved);
+            addMessage("Improvement ready — review the changes and accept or discard.");
+        } catch (err) {
+            console.error(err);
+            addMessage("AI Error:\n" + err.message);
+        }
+    }
+
+    /* Word-level diff */
+    function computeDiff(original, improved) {
+        const oldWords = original.split(/(\s+)/);
+        const newWords = improved.split(/(\s+)/);
+
+        // Simple LCS-based word diff
+        const m = oldWords.length, n = newWords.length;
+        // Build LCS table (space-optimised for large texts: cap at 600 words each side)
+        const capM = Math.min(m, 600), capN = Math.min(n, 600);
+        const dp = Array.from({length: capM + 1}, () => new Array(capN + 1).fill(0));
+        for (let i = 1; i <= capM; i++) {
+            for (let j = 1; j <= capN; j++) {
+                dp[i][j] = oldWords[i-1] === newWords[j-1]
+                    ? dp[i-1][j-1] + 1
+                    : Math.max(dp[i-1][j], dp[i][j-1]);
+            }
+        }
+
+        // Backtrack
+        const ops = []; // {type: 'eq'|'del'|'ins', text}
+        let i = capM, j = capN;
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldWords[i-1] === newWords[j-1]) {
+                ops.push({type:'eq', text: oldWords[i-1]}); i--; j--;
+            } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+                ops.push({type:'ins', text: newWords[j-1]}); j--;
+            } else {
+                ops.push({type:'del', text: oldWords[i-1]}); i--;
+            }
+        }
+        ops.reverse();
+
+        // Append any uncapped tail as-is
+        const oldTail = oldWords.slice(capM).join('');
+        const newTail = newWords.slice(capN).join('');
+
+        let oldHtml = '', newHtml = '';
+        ops.forEach(op => {
+            const safe = escHtml(op.text);
+            if (op.type === 'eq')  { oldHtml += safe; newHtml += safe; }
+            if (op.type === 'del') { oldHtml += `<span class="diff-removed">${safe}</span>`; }
+            if (op.type === 'ins') { newHtml += `<span class="diff-added">${safe}</span>`; }
+        });
+
+        if (oldTail) oldHtml += escHtml(oldTail);
+        if (newTail) newHtml += escHtml(newTail);
+
+        return { oldHtml, newHtml };
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function showDiff(original, improved) {
+        const { oldHtml, newHtml } = computeDiff(original, improved);
+        document.getElementById("diffOriginal").innerHTML = oldHtml;
+        document.getElementById("diffImproved").innerHTML = newHtml;
+        document.getElementById("diffModal").style.display = "flex";
+    }
+
+    function acceptImproved() {
+        if (pendingImproved) {
+            editor.innerText = pendingImproved;
+            pendingImproved = "";
+            const note = notes.find(n => n.id === currentId);
+            if (note) { note.content = editor.innerHTML; saveNotes(); renderNotes(); }
+            updateStats();
+            addMessage("✓ Improved version accepted.");
+        }
+        closeDiffModal();
+    }
+
+    function closeDiffModal() {
+        document.getElementById("diffModal").style.display = "none";
+        pendingImproved = "";
+    }
+
+    /* ========================
+       ESSAY GENERATOR
+    ======================== */
+    function openEssayModal() {
+        document.getElementById("essayModal").style.display = "flex";
+        document.getElementById("essayTopic").focus();
+    }
+
+    function closeEssayModal() {
+        document.getElementById("essayModal").style.display = "none";
+    }
+
+    async function generateEssay() {
+        const topic   = document.getElementById("essayTopic").value.trim();
+        const desc    = document.getElementById("essayDesc").value.trim();
+        const minW    = parseInt(document.getElementById("essayMin").value) || 400;
+        const maxW    = parseInt(document.getElementById("essayMax").value) || 600;
+
+        if (!topic) { alert("Please enter a topic."); return; }
+        if (minW >= maxW) { alert("Minimum word count must be less than maximum."); return; }
+
+        closeEssayModal();
+        addMessage(`📝 Generating essay on "${topic}" (${minW}–${maxW} words)...`);
+
+        const targetWords = Math.round((minW + maxW) / 2);
+
+        try {
+            const essay = await sendAI([
+                {
+                    role: "system",
+                    content: `You are an expert essay writer. Write well-structured, engaging essays. Return ONLY the essay text — no meta-commentary, no word count note, no preamble. Aim for approximately ${targetWords} words (hard minimum ${minW}, hard maximum ${maxW}).`
+                },
+                {
+                    role: "user",
+                    content: `Write an essay on the following topic:\n\nTopic: ${topic}\n\nDescription / key points: ${desc || "General essay on the topic."}\n\nTarget length: approximately ${targetWords} words (between ${minW} and ${maxW} words).`
+                }
+            ]);
+
+            // Put essay into a new document
+            createNote();
+            editor.innerText = essay;
+            const note = notes.find(n => n.id === currentId);
+            if (note) {
+                note.content = editor.innerHTML;
+                note.title = topic.slice(0, 30);
+                saveNotes();
+                renderNotes();
+            }
+            updateStats();
+            addMessage(`✓ Essay generated. ${essay.trim().split(/\s+/).length} words.`);
+        } catch (err) {
+            console.error(err);
+            addMessage("AI Error:\n" + err.message);
+        }
+    }
+
+    /* ASK AI */
+    async function askAI() {
+        const promptBox = document.getElementById("promptBox");
+        const prompt = promptBox.value.trim();
+        if (!prompt) return;
+        addMessage("You:\n" + prompt);
+        promptBox.value = "";
+        try {
+            let memory = loadChatMemory();
+            memory.push({ role: "user", content: prompt });
+            if (memory.length > 20) memory = memory.slice(-20);
+            const reply = await sendAI(memory);
+            addMessage("AI:\n" + reply);
+            memory.push({ role: "assistant", content: reply });
+            saveChatMemory(memory);
+        } catch (err) {
+            console.error(err);
+            addMessage("AI Error:\n" + err.message);
+        }
+    }
+
+    /* PDF */
+    async function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
+        const lines = pdf.splitTextToSize(editor.innerText, 180);
+        pdf.text(lines, 15, 20);
+        pdf.save("document.pdf");
+    }
+
+    /* SEARCH */
+    document.getElementById("searchInput").addEventListener("input", () => renderNotes());
+
+    /* SHORTCUTS */
+    window.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "s") { e.preventDefault(); saveNotes(); }
+        if (e.ctrlKey && e.key === "b") { e.preventDefault(); format("bold"); }
+        if (e.ctrlKey && e.key === "i") { e.preventDefault(); format("italic"); }
+    });
+
+    /* ========================
+       SPOTLIGHT TUTORIAL
+    ======================== */
+
+    const TUT_STEPS = [
+        {
+            target: 'tgt-sidebar',
+            arrow: 'right',
+            title: '📄 Your Documents',
+            body: 'All your documents live here in the sidebar. Click any document to open it. Your work is saved automatically as you type.'
+        },
+        {
+            target: 'tgt-search',
+            arrow: 'right',
+            title: '🔍 Search Documents',
+            body: 'Type here to instantly filter your documents by title across all folders.'
+        },
+        {
+            target: 'tgt-addfolder',
+            arrow: 'top',
+            title: '📁 Folders',
+            body: 'Create folders to organise your documents. Each document has a small dropdown to move it into a folder. Folders can be renamed or deleted.'
+        },
+        {
+            target: 'notes',
+            arrow: 'right',
+            title: '✎ Rename & Move',
+            body: 'Each document has a <b>pencil icon</b> to rename it and an <b>✕</b> to delete. Use the small dropdown below the title to move it into a folder.'
+        },
+        {
+            target: 'tgt-newbtn',
+            arrow: 'top',
+            title: '➕ New Document',
+            body: 'Click this to create a fresh document. It starts blank — rename it straight away with the pencil icon.'
+        },
+        {
+            target: 'tgt-toolbar',
+            arrow: 'bottom',
+            title: '🖊 Formatting Toolbar',
+            body: '<b>B / I / U</b> make text Bold, Italic, or Underlined. Keyboard shortcuts Ctrl+B and Ctrl+I work too.'
+        },
+        {
+            target: 'tgt-improve',
+            arrow: 'bottom',
+            title: '✨ AI Improve',
+            body: 'Rewrites your document with better grammar and flow. A <b>side-by-side diff</b> then shows every change — accept or keep your original.'
+        },
+        {
+            target: 'tgt-essay',
+            arrow: 'bottom',
+            title: '📝 Generate Essay',
+            body: 'Give the AI a topic, description, and word-count range. It writes a full essay into a brand-new document.'
+        },
+        {
+            target: 'tgt-style',
+            arrow: 'bottom',
+            title: '🎨 Page Style',
+            body: 'Customise the paper — choose a <b>font</b>, adjust <b>size and line spacing</b>, and pick <b>paper and text colours</b>. Four presets get you started in one click.'
+        },
+        {
+            target: 'tgt-wctarget',
+            arrow: 'bottom',
+            title: '🎯 Word Goal',
+            body: 'Set a target word count. A <b>progress bar</b> appears at the bottom of the editor and fills up as you write — great for essays or timed writing.'
+        },
+        {
+            target: 'tgt-aipanel',
+            arrow: 'left',
+            title: '🤖 AI Assistant',
+            body: 'Chat with the AI anytime — brainstorm, ask for feedback, or request an outline. It remembers the conversation until you click <b>🧠 Clear AI Memory</b>.'
+        },
+        {
+            target: 'tgt-settings',
+            arrow: 'bottom',
+            title: '⚙ Settings & Export',
+            body: 'Enter your <b>Groq or OpenAI API key</b> here. Groq is free — grab a key at console.groq.com. Use <b>Export PDF</b> to download any document.',
+            last: true
+        }
+    ];
+
+    let tutStep = 0;
+    let tutActive = false;
+    let tutHighlighted = null;
+
+    const tutOverlay    = document.getElementById('tutOverlay');
+    const tutSvg        = document.getElementById('tutOverlaySvg');
+    const tutClickBlock = document.getElementById('tutClickBlock');
+    const tutCard       = document.getElementById('tutCard');
+    const tutCardStep   = document.getElementById('tutCardStep');
+    const tutCardTitle  = document.getElementById('tutCardTitle');
+    const tutCardBody   = document.getElementById('tutCardBody');
+    const tutCardDots   = document.getElementById('tutCardDots');
+    const tutNextBtn    = document.getElementById('tutNextBtn');
+
+    function buildDots() {
+        tutCardDots.innerHTML = '';
+        TUT_STEPS.forEach((_, i) => {
+            const d = document.createElement('div');
+            d.className = 'tut-card-dot' +
+                (i === tutStep ? ' active' : i < tutStep ? ' done' : '');
+            tutCardDots.appendChild(d);
+        });
+    }
+
+    function drawOverlay(rect, pad = 10) {
+        const W = window.innerWidth, H = window.innerHeight;
+        const r = pad; // corner radius of hole
+        const x = rect.left   - pad;
+        const y = rect.top    - pad;
+        const w = rect.width  + pad * 2;
+        const h = rect.height + pad * 2;
+
+        // Full-screen rect with a rounded-rect hole cut out via even-odd rule
+        tutSvg.innerHTML = `
+          <defs>
+            <mask id="hole">
+              <rect width="${W}" height="${H}" fill="white"/>
+              <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="black"/>
+            </mask>
+          </defs>
+          <rect width="${W}" height="${H}" fill="rgba(0,0,0,0.62)" mask="url(#hole)"/>
+        `;
+    }
+
+    function positionCard(rect, arrow, pad = 14) {
+        tutCard.className = ''; // clear arrow classes
+        tutCard.style.display = 'flex';
+
+        const cw = tutCard.offsetWidth  || 300;
+        const ch = tutCard.offsetHeight || 220;
+        const W  = window.innerWidth;
+        const H  = window.innerHeight;
+
+        let top, left;
+
+        if (arrow === 'right') {
+            // Card is to the right of the target
+            left = rect.right + pad;
+            top  = rect.top + rect.height / 2 - ch / 2;
+            tutCard.classList.add('arrow-left');
+        } else if (arrow === 'left') {
+            left = rect.left - cw - pad;
+            top  = rect.top + rect.height / 2 - ch / 2;
+            tutCard.classList.add('arrow-right');
+        } else if (arrow === 'bottom') {
+            // Card appears below (arrow points up toward target from card top)
+            top  = rect.bottom + pad;
+            left = rect.left + rect.width / 2 - cw / 2;
+            tutCard.classList.add('arrow-top');
+        } else {
+            // arrow === 'top': card appears above
+            top  = rect.top - ch - pad;
+            left = rect.left + rect.width / 2 - cw / 2;
+            tutCard.classList.add('arrow-bottom');
+        }
+
+        // Clamp within viewport
+        left = Math.max(10, Math.min(left, W - cw - 10));
+        top  = Math.max(10, Math.min(top,  H - ch - 10));
+
+        tutCard.style.left = left + 'px';
+        tutCard.style.top  = top  + 'px';
+    }
+
+    function showTutStep(idx) {
+        const step = TUT_STEPS[idx];
+        const el   = document.getElementById(step.target);
+
+        // Clear previous highlight
+        if (tutHighlighted) {
+            tutHighlighted.classList.remove('tut-highlight');
+            tutHighlighted = null;
+        }
+
+        if (el) {
+            el.classList.add('tut-highlight');
+            tutHighlighted = el;
+            const rect = el.getBoundingClientRect();
+            drawOverlay(rect);
+        } else {
+            // No target: just darken everything
+            tutSvg.innerHTML = `<rect width="100%" height="100%" fill="rgba(0,0,0,0.62)"/>`;
+        }
+
+        // Update card content
+        tutCardStep.textContent  = `Step ${idx + 1} of ${TUT_STEPS.length}`;
+        tutCardTitle.innerHTML   = step.title;
+        tutCardBody.innerHTML    = step.body;
+        tutNextBtn.textContent   = step.last ? 'Get started ✓' : 'Next →';
+        buildDots();
+
+        // Show overlay + card
+        tutOverlay.style.display    = 'block';
+        tutClickBlock.style.display = 'block';
+        tutCard.style.display       = 'flex';
+
+        // Position card after it's visible (so we can measure it)
+        requestAnimationFrame(() => {
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                positionCard(rect, step.arrow);
+            } else {
+                tutCard.style.left = '50%';
+                tutCard.style.top  = '50%';
+                tutCard.style.transform = 'translate(-50%,-50%)';
+            }
+        });
+    }
+
+    function tutNext() {
+        if (tutStep < TUT_STEPS.length - 1) {
+            tutStep++;
+            showTutStep(tutStep);
+        } else {
+            closeTutorial();
+        }
+    }
+
+    function closeTutorial() {
+        tutActive = false;
+        tutOverlay.style.display    = 'none';
+        tutClickBlock.style.display = 'none';
+        tutCard.style.display       = 'none';
+        if (tutHighlighted) {
+            tutHighlighted.classList.remove('tut-highlight');
+            tutHighlighted = null;
+        }
+        localStorage.setItem('ai-studio-visited', '1');
+    }
+
+    function restartTutorial() {
+        tutStep = 0;
+        tutActive = true;
+        showTutStep(0);
+    }
+
+    function maybeShowTutorial() {
+        if (!localStorage.getItem('ai-studio-visited')) {
+            tutStep  = 0;
+            tutActive = true;
+            showTutStep(0);
+        }
+    }
+
+    // Redraw on resize so spotlight stays aligned
+    window.addEventListener('resize', () => {
+        if (!tutActive) return;
+        const step = TUT_STEPS[tutStep];
+        const el   = document.getElementById(step.target);
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            drawOverlay(rect);
+            positionCard(rect, step.arrow);
+        }
+    });
+
+    /* INIT */
+    if (notes.length === 0) createNote();
+    else loadNote(notes[0].id);
+    loadPageStyle();
+    updateStats();
+    maybeShowTutorial();
+
+</script>
+</body>
+</html>
